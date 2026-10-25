@@ -1,0 +1,9 @@
+.pytest_cache/
+.venv/
+.env
+/src/llm_lab/__pycache__/
+/src/llm_lab/providers/__pycache__/
+src/tests/__pycache__/
+LEARNING_LOG.md
+Notes.txt
+TODO_NEXT.md
