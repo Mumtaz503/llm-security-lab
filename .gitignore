@@ -1,9 +1,41 @@
-.pytest_cache/
+# Virtual envs
 .venv/
+venv/
+env/
+
+# Secrets (keep .env.example)
 .env
-/src/llm_lab/__pycache__/
-/src/llm_lab/providers/__pycache__/
-src/tests/__pycache__/
+.env.*
+!.env.example
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.cache/
+
+# Packaging / install artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Local notes (not part of the lab deliverable)
 LEARNING_LOG.md
 Notes.txt
 TODO_NEXT.md
