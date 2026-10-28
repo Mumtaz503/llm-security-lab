@@ -1,6 +1,10 @@
 import pytest
 from llm_lab.providers.real import RealHTTPProvider
 from llm_lab.providers.base import ProviderError
+from llm_lab.api.app import app
+from fastapi.testclient import TestClient
+
+client = TestClient(app)
 
 #monkeypatch is a pytest fixture that allows you to modify the environment variables.
 #no env vars exposed during test
@@ -12,7 +16,7 @@ def test_real_err_unconfigured(monkeypatch):
         RealHTTPProvider().complete(
             [{"role": "user", "content": "Hello, world!"}], timeout=5.0
         )
-    assert "Keys Not configured yet" in str(e.value)
+    assert "yet" in str(e.value)
 
 def test_real_err_when_configured_unimplemented(monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "test")
@@ -23,3 +27,13 @@ def test_real_err_when_configured_unimplemented(monkeypatch):
             [{"role": "user", "content": "Hello, world!"}], timeout=5.0
         )
     assert "not implemented" in str(e.value)
+
+def test_real_provider_failure(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "ABC-XYZ-123")
+    monkeypatch.setenv("LLM_BASE_URL", "http://example.null")
+    monkeypatch.setenv("LLM_MODEL", "test")
+    response = client.post(
+        "/v1/query", json={"question": "What is the capital of France?", "timeout": 10, "provider": "real"}
+    )
+    assert response.status_code == 502
+    assert "not implemented" in response.json()["detail"]

@@ -1,6 +1,8 @@
 import logging
+import os
 from fastapi import FastAPI, HTTPException
 from llm_lab.models import QueryRequest
+from llm_lab.models import QueryResponse
 from llm_lab.logging_setup import config_logging
 from llm_lab.providers import get_provider
 from llm_lab.providers.base import ProviderError
@@ -32,7 +34,7 @@ async def query(request: QueryRequest):
     try:
         provider = get_provider(provider)
     except ProviderError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {str(e)}")
 
     logger.info(
         "request.start provider=%s question_len=%d",
@@ -42,15 +44,25 @@ async def query(request: QueryRequest):
 
     try:
         completion = provider.complete(
-            build_msg(request.question), timeout=request.timeout or 30 # placeholder timeout
+            build_msg(request.question),
+            timeout=request.timeout or float(os.getenv("LLM_TIMEOUT", "30")),
         )
     except ProviderError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            "request.failue unhandled exception provider=%s", provider.name
+        )
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
     logger.info(
-        "request.complete provider=%s answer_len=%d",
+        "request.complete provider=%s response_len=%d",
         provider.name,
         len(completion.content),
     )
 
-    return {"content": completion.content, "provider": completion.provider}
+    return QueryResponse(
+        content=completion.content,
+        provider=completion.provider,
+        model=completion.model,
+    )
