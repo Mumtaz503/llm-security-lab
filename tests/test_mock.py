@@ -2,6 +2,7 @@ from llm_lab.providers.mock import MockProvider
 from llm_lab.api.app import app
 from fastapi.testclient import TestClient
 from llm_lab.providers.base import ProviderError
+from auth_helpers import AUTH_HEADERS
 
 client = TestClient(app)
 
@@ -20,7 +21,13 @@ def test_mock_provider_failure(monkeypatch):
         raise ProviderError("Mock Failed")
     monkeypatch.setattr(MockProvider, "complete", boom)
     response = client.post(
-        "/v1/query", json={"question": "What is the capital of France?", "timeout": 10, "provider": "mock"}
+        "/v1/query",
+        json={
+            "question": "What is the capital of France?",
+            "timeout": 10,
+            "provider": "mock",
+        },
+        headers=AUTH_HEADERS,
     )
     assert response.status_code == 502
     assert "Mock Failed" in response.json()["detail"]

@@ -86,3 +86,57 @@ pytest -q
 PYTHONPATH=src pytest -q
 ```
 
+---
+## HTTP API (dev auth)
+
+The FastAPI app (`uvicorn llm_lab.api.app:app --reload`) protects
+`POST /v1/query` with a **header-based** identity check.
+`GET /health` stays open.
+
+### Test users (insecure development only)
+
+Two named lab users exist in code (`llm_lab.auth.config`):
+
+| Name  | Role in lab                          |
+|-------|--------------------------------------|
+| alice | Example caller A                     |
+| bob   | Example caller B                     |
+
+Example tokens live only in `.env.example` (`TOKEN_ALICE`, `TOKEN_BOB`).
+Copy them into a local `.env` — **never commit real secrets**.
+
+> **Insecure development shortcut:** tokens in a request header are *not*
+> real authentication (no sessions, OIDC, signatures, or expiry). This is a
+> learning stub so we can practice trust boundaries. Do not use it outside
+> this lab.
+
+Identity is taken from the `X-API-Token` header via FastAPI
+`Depends(get_current_user)`, **never** from the JSON body.
+
+```bash
+# valid (alice) → 200 with mock
+curl -sS -X POST http://127.0.0.1:8000/v1/query \
+  -H "Content-Type: application/json" \
+  # only if env is loaded. else run this and start the server
+  # export TOKEN_ALICE=dev-alice-token-123
+  # export TOKEN_BOB=dev-bob-token-456
+  # uvicorn llm_lab.api.app:app --reload
+  -H "X-API-Token: $TOKEN_ALICE" \ 
+  -d '{"question":"hi"}'
+
+# missing header → 401
+curl -sS -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:8000/v1/query \
+  -H "Content-Type: application/json" \
+  -d '{"question":"hi"}'
+```
+
+---
+### Authn vs authz (lab note)
+
+**Authentication (authn)** answers “who is calling?” — here, mapping
+`X-API-Token` to alice or bob. **Authorization (authz)** answers “what may
+they do?” (which docs, tools, or tenants). This exercise only does a thin
+authn stub; it does not enforce per-user authz yet. A JSON field like
+`user_id` is not proof of identity: the client can set any value, so the
+server must establish identity from a verified channel (header/session/token
+checked against a server-side allowlist), then apply authz separately.

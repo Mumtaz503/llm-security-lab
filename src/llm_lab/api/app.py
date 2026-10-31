@@ -6,6 +6,9 @@ from llm_lab.models import QueryResponse
 from llm_lab.logging_setup import config_logging
 from llm_lab.providers import get_provider
 from llm_lab.providers.base import ProviderError
+from fastapi import Depends
+from llm_lab.auth.deps import get_current_user
+from llm_lab.auth.config import User
 
 config_logging()
 logger = logging.getLogger("llm_lab.api.app")
@@ -27,7 +30,11 @@ async def health_check():
 
 
 @app.post("/v1/query")
-async def query(request: QueryRequest):
+async def query(
+    request: QueryRequest, user: User = Depends(get_current_user)
+):  # insecure development shortcut
+    # TODO: implement later with sessions/OIDC/etc.
+    # sessions/OIDC/etc.
     provider = (
         request.provider or ""
     ).strip() or "mock"  # missing or blank provider defaults to mock
@@ -37,8 +44,9 @@ async def query(request: QueryRequest):
         raise HTTPException(status_code=400, detail=f"Unknown provider: {str(e)}")
 
     logger.info(
-        "request.start provider=%s question_len=%d",
+        "request.start provider=%s user=%s question_len=%d",
         provider.name,
+        user.id,
         len(request.question),
     )
 
