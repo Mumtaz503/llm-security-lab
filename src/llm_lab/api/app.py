@@ -55,9 +55,15 @@ async def query(
             build_msg(request.question),
             timeout=request.timeout or float(os.getenv("LLM_TIMEOUT", "30")),
         )
+        # Access fields inside try so unexpected shapes → 500, not an unhandled crash
+        response = QueryResponse(
+            content=completion.content,
+            provider=completion.provider,
+            model=completion.model,
+        )
     except ProviderError as e:
         raise HTTPException(status_code=502, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception(
             "request.failue unhandled exception provider=%s", provider.name
         )
@@ -66,11 +72,8 @@ async def query(
     logger.info(
         "request.complete provider=%s response_len=%d",
         provider.name,
-        len(completion.content),
+        len(response.content),
     )
 
-    return QueryResponse(
-        content=completion.content,
-        provider=completion.provider,
-        model=completion.model,
-    )
+    return response
+

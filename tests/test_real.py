@@ -28,6 +28,7 @@ def test_real_err_when_configured_unimplemented(monkeypatch):
         )
     assert "not implemented" in str(e.value)
 
+# Test for real provider failure returns 502 (expected)
 def test_real_provider_failure(monkeypatch):
     from auth_helpers import AUTH_HEADERS
 

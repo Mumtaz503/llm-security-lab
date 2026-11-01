@@ -6,27 +6,28 @@ deterministic and needs no API key; the real provider is a stub that fails
 loudly until HTTP support lands.
 
 This repo is a **security lab**. Treat the model as a third party and its
-output as untrusted. See [`docs/NEVER_LOG.md`](docs/NEVER_LOG.md) and
-[`docs/DATA_FLOW.md`](docs/DATA_FLOW.md).
+output as untrusted. See [`docs/NEVER_LOG.md`](docs/NEVER_LOG.md),
+[`docs/DATA_FLOW.md`](docs/DATA_FLOW.md),
+[`docs/TRUST_BOUNDARIES.md`](docs/TRUST_BOUNDARIES.md), and
+[`docs/TEST_MATRIX.md`](docs/TEST_MATRIX.md).
 
 ---
 
 ## Requirements
 
 - **Python 3.9+** (tested on 3.9–3.12)
-- No runtime dependencies. `pytest` is dev-only.
+- **Runtime:** `fastapi`, `uvicorn`, `httpx` (see `pyproject.toml`)
+- **Dev:** `pytest` (optional extra)
 
 Check your interpreter:
 
 ```bash
 python3 --version
-
 ```
 
 ---
 ## Setup (from an empty clone)
 ```bash
-
 git clone <repo-url> llm-security-lab
 cd llm-security-lab
 
@@ -34,11 +35,8 @@ cd llm-security-lab
 python3 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 
-# Dev dependency only (needed for pytest; not for running the CLI)
-pip install pytest
-
-# Optional: install the package so `llm-lab` and tests find it without PYTHONPATH
-pip install -e .
+# Install package + runtime deps; include pytest via [dev]
+pip install -e ".[dev]"
 ```
 
 ---
@@ -77,9 +75,11 @@ LLM_API_KEY=x LLM_BASE_URL=http://example.invalid LLM_MODEL=m \
 ## Tests
 
 Tests are offline: they use unittest.mock/monkeypatch, never network.
-Expected: all pass.
+Expected: all pass. See [`docs/TEST_MATRIX.md`](docs/TEST_MATRIX.md) for
+unit (provider) vs API/`TestClient` (integration) coverage.
+
 ```bash
-# If you installed the package (pip install -e .):
+# If you installed the package (pip install -e ".[dev]"):
 pytest -q
 
 # Otherwise:
@@ -89,9 +89,21 @@ PYTHONPATH=src pytest -q
 ---
 ## HTTP API (dev auth)
 
-The FastAPI app (`uvicorn llm_lab.api.app:app --reload`) protects
-`POST /v1/query` with a **header-based** identity check.
-`GET /health` stays open.
+The FastAPI app protects `POST /v1/query` with a **header-based** identity
+check. `GET /health` stays open.
+
+**Put `TOKEN_ALICE` / `TOKEN_BOB` in the server process environment** (tokens
+are read from env on each request). Export before starting uvicorn, or
+`source .env` into that shell:
+
+```bash
+export TOKEN_ALICE=dev-alice-token-123
+export TOKEN_BOB=dev-bob-token-456
+uvicorn llm_lab.api.app:app --reload
+```
+
+(Or `set -a && source .env && set +a` then start uvicorn. Curl’s shell env
+does not affect the server unless you pass the token value in the header.)
 
 ### Test users (insecure development only)
 
@@ -117,11 +129,7 @@ Identity is taken from the `X-API-Token` header via FastAPI
 # valid (alice) → 200 with mock
 curl -sS -X POST http://127.0.0.1:8000/v1/query \
   -H "Content-Type: application/json" \
-  # only if env is loaded. else run this and start the server
-  # export TOKEN_ALICE=dev-alice-token-123
-  # export TOKEN_BOB=dev-bob-token-456
-  # uvicorn llm_lab.api.app:app --reload
-  -H "X-API-Token: $TOKEN_ALICE" \ 
+  -H "X-API-Token: dev-alice-token-123" \
   -d '{"question":"hi"}'
 
 # missing header → 401
